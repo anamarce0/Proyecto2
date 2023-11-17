@@ -9,7 +9,7 @@ class TablaSimbolos:
         else:
             self.variables[nombre] = tipo
 
-    def buscar(self, nombre):
+    def buscarVariable(self, nombre):
         return self.variables.get(nombre, None)
 
     def insertar_funcion(self, nombre, tipoRetorno):
@@ -18,7 +18,7 @@ class TablaSimbolos:
         else:
             self.funciones[nombre] = tipoRetorno
 
-    def lookup_function(self, name):
+    def buscarFuncion(self, name):
         return self.funciones.get(name, None)
 
     def __str__(self):
@@ -50,7 +50,7 @@ def split_parenthesis(linea):
                 palabra = ''
             tokens.append(',')
         else:
-            if char != '\t' and char != '\n':
+            if char != '\t' and char != '\n' and char != '"':
                 palabra += char
 
     if palabra:
@@ -58,9 +58,31 @@ def split_parenthesis(linea):
 
     return tokens
 
-def guardarEnTablaSimbolos(file_path):
 
+def validarDato(variable_type, variable_value):
+    if variable_type == 'int':
+        try:
+            int(variable_value)
+            return True
+        except:
+            return False
+    elif variable_type == 'float':
+        try:
+            float(variable_value)
+            return True
+        except:
+            return False
+    elif variable_type == 'string':
+        try:
+            str(variable_value)
+            return True
+        except:
+            return False
+
+
+def guardarEnTablaSimbolos(file_path):
     tablaSimbolos = TablaSimbolos()
+    errors = []
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -90,12 +112,46 @@ def guardarEnTablaSimbolos(file_path):
                             tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1])
                             i += 3  # Siguiente variable
                 else:
-                    # Declarar variable
-                    tablaSimbolos.insertar_variable(tokens[1], tokens[0])
+                    # Declare variable with type checking
+                    variable_name = tokens[1]
+                    variable_type = tokens[0]
+                    variable_value = tokens[3]
+
+                    if validarDato(variable_type, variable_value):
+                        tablaSimbolos.insertar_variable(tokens[1], tokens[0])
+                    else:
+                        errors.append(f"Error en línea {line_num}: El valor '{variable_value}' no es una cadena para la variable '{variable_name}'")
+            elif keyword in tablaSimbolos:
+                i = 0
+                variable_name = tokens[1]
+                variable_type = tokens[0]
+                while i < len(tokens):
+
     return tablaSimbolos
 
+
+
+
+
+def analizar(file_path):
+    symbol_table = guardarEnTablaSimbolos(file_path)
+    errors = []
+
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    current_function = None
+
+    for line_num, line in enumerate(lines, start=1):
+        tokens = split_parenthesis(line)
+
+        if len(tokens) > 1:
+            keyword = tokens[0]
+            last = tokens[-1]
+
+
 def analyze_code(file_path):
-    symbol_table = TablaSimbolos()
+    symbol_table = guardarEnTablaSimbolos(file_path)
     errors = []
 
     with open(file_path, 'r') as file:
@@ -113,9 +169,9 @@ def analyze_code(file_path):
             # comprueba declaraciones de variables solas
             if last != '{':
                 if keyword == 'int' or keyword == 'float' or keyword == 'string':
-                        symbol_table.insertar_variable(tokens[1], tokens[0])
-                else:
-                    print(f"Error - Línea {line_num}: Declaración de variable '{tokens[1]}' invalida.")
+                    print("sd")
+            else:
+                print(f"Error - Línea {line_num}: Declaración de variable '{tokens[1]}' invalida.")
 
             # comprueba declaraciones de funciones
             if last == '{':
@@ -138,7 +194,7 @@ def analyze_code(file_path):
                 # Inside a function
                 if keyword == 'return':
                     # Check return type
-                    expected_return_type = symbol_table.lookup_function(current_function)
+                    expected_return_type = symbol_table.buscarFuncion(current_function)
                     if expected_return_type and len(tokens) >= 2 and tokens[1] != expected_return_type:
                         errors.append(
                             f"Error - Línea {line_num}: Tipo de retorno incorrecto para la función '{current_function}'.")
