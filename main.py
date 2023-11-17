@@ -1,74 +1,66 @@
-import re
-
-
-class SymbolTable:
+class TablaSimbolos:
     def __init__(self):
         self.variables = {}
-        self.functions = {}
+        self.funciones = {}
 
-    def insert_variable(self, name, data_type):
-        if name in self.variables:
-            print(f"Error - Variable '{name}' redefinida.")
+    def insertar_variable(self, nombre, tipo):
+        if nombre in self.variables:
+            print(f"Error - Variable '{nombre}' redefinida.")
         else:
-            self.variables[name] = data_type
+            self.variables[nombre] = tipo
 
-    def lookup_variable(self, name):
-        return self.variables.get(name, None)
+    def buscar(self, nombre):
+        return self.variables.get(nombre, None)
 
-    def insert_function(self, name, return_type):
-        if name in self.functions:
-            print(f"Error - Función '{name}' redefinida.")
+    def insertar_funcion(self, nombre, tipoRetorno):
+        if nombre in self.funciones:
+            print(f"Error - Función '{nombre}' redefinida.")
         else:
-            self.functions[name] = return_type
+            self.funciones[nombre] = tipoRetorno
 
     def lookup_function(self, name):
-        return self.functions.get(name, None)
+        return self.funciones.get(name, None)
 
     def __str__(self):
-        return f"Symbol Table:\n\nVariables:\n{self.variables}\n\nFunctions:\n{self.functions}"
+        return f"Symbol Table:\n\nVariables:\n{self.variables}\n\nFunctions:\n{self.funciones}"
 
 
 def split_parenthesis(linea):
     tokens = []
-    current_word = ''
-    inside_parentheses = False
+    palabra = ''
 
     for char in linea:
         if char == '(':
-            if current_word:
-                tokens.append(current_word)
-                current_word = ''
+            if palabra:
+                tokens.append(palabra)
+                palabra = ''
             tokens.append('(')
         elif char == ')':
-            if current_word:
-                tokens.append(current_word)
-                current_word = ''
+            if palabra:
+                tokens.append(palabra)
+                palabra = ''
             tokens.append(')')
         elif char == ' ':
-            if current_word:
-                tokens.append(current_word)
-                current_word = ''
+            if palabra:
+                tokens.append(palabra)
+                palabra = ''
         elif char == ',':
-            if current_word:
-                tokens.append(current_word)
-                current_word = ''
+            if palabra:
+                tokens.append(palabra)
+                palabra = ''
             tokens.append(',')
         else:
-            if char != '\t':
-                current_word += char
+            if char != '\t' and char != '\n':
+                palabra += char
 
-    if current_word:
-        tokens.append(current_word)
-
-    if tokens[-1].endswith('\n'):
-        tokens[-1] = tokens[-1].rstrip('\n')
+    if palabra:
+        tokens.append(palabra)
 
     return tokens
 
 def guardarEnTablaSimbolos(file_path):
 
-    symbol_table = SymbolTable()
-    errors = []
+    tablaSimbolos = TablaSimbolos()
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -80,30 +72,30 @@ def guardarEnTablaSimbolos(file_path):
             keyword = tokens[0]
 
             if keyword == 'int' or keyword == 'float' or keyword == 'string' or keyword == 'void':
-                # Function declaration with parameters
+                # Declarar funcion con parametros
                 if tokens[2] == '(':
                     function_name = tokens[1]
                     return_type = tokens[0]
 
-                    symbol_table.insert_function(function_name, return_type)
+                    tablaSimbolos.insertar_funcion(function_name, return_type)
 
-                    # Extract and save function parameters
+                    # Guardar parametros
 
-                    i = 4  # Index of first parameter
+                    i = 4  # Primer parametro despues de (
                     while i < len(tokens) and tokens[i] != '{':
                         if tokens[i] == ',':
-                            symbol_table.insert_variable(tokens[i-1], tokens[i-2])
-                            i += 2  # Move to next parameter
+                            tablaSimbolos.insertar_variable(tokens[i - 1], tokens[i - 2])
+                            i += 2  # Siguiente variable
                         else:
-                            symbol_table.insert_variable(tokens[i], tokens[i-1])
-                            i += 3  # Move to next parameter
+                            tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1])
+                            i += 3  # Siguiente variable
                 else:
-                    # Variable declaration
-                    symbol_table.insert_variable(tokens[1], tokens[0])
-    return symbol_table
+                    # Declarar variable
+                    tablaSimbolos.insertar_variable(tokens[1], tokens[0])
+    return tablaSimbolos
 
 def analyze_code(file_path):
-    symbol_table = SymbolTable()
+    symbol_table = TablaSimbolos()
     errors = []
 
     with open(file_path, 'r') as file:
@@ -121,7 +113,7 @@ def analyze_code(file_path):
             # comprueba declaraciones de variables solas
             if last != '{':
                 if keyword == 'int' or keyword == 'float' or keyword == 'string':
-                        symbol_table.insert_variable(tokens[1], tokens[0])
+                        symbol_table.insertar_variable(tokens[1], tokens[0])
                 else:
                     print(f"Error - Línea {line_num}: Declaración de variable '{tokens[1]}' invalida.")
 
@@ -132,7 +124,7 @@ def analyze_code(file_path):
                     if len(tokens) >= 4:
                         function_name = tokens[1]
                         return_type = tokens[0]
-                        symbol_table.insert_function(function_name, return_type)
+                        symbol_table.insertar_funcion(function_name, return_type)
                         current_function = function_name
                     else:
                         errors.append(f"Error - Línea {line_num}: Declaración de función incompleta.")
