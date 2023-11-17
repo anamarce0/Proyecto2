@@ -126,11 +126,13 @@ def guardarEnTablaSimbolos(file_path):
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
                         else:
                             errors.append(
-                                f"Error en línea {line_num}: El valor '{variable_value}' no es una cadena para la variable '{variable_name}'")
+                                f"Error en línea {line_num}: El valor '{variable_value}' no es una cadena para la "
+                                f"variable '{variable_name}'")
                     else:
                         if enFuncion:
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "funcion")
-                        tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
+                        else:
+                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
             elif keyword == 'if' or keyword == 'while':
                 condition_tokens = tokens[2:]
 
