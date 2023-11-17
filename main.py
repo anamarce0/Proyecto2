@@ -24,6 +24,9 @@ class SymbolTable:
     def lookup_function(self, name):
         return self.functions.get(name, None)
 
+    def __str__(self):
+        return f"Symbol Table:\n\nVariables:\n{self.variables}\n\nFunctions:\n{self.functions}"
+
 
 def split_parenthesis(linea):
     tokens = []
@@ -45,8 +48,14 @@ def split_parenthesis(linea):
             if current_word:
                 tokens.append(current_word)
                 current_word = ''
+        elif char == ',':
+            if current_word:
+                tokens.append(current_word)
+                current_word = ''
+            tokens.append(',')
         else:
-            current_word += char
+            if char != '\t':
+                current_word += char
 
     if current_word:
         tokens.append(current_word)
@@ -56,6 +65,42 @@ def split_parenthesis(linea):
 
     return tokens
 
+def guardarEnTablaSimbolos(file_path):
+
+    symbol_table = SymbolTable()
+    errors = []
+
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    for line_num, line in enumerate(lines, start=1):
+        tokens = split_parenthesis(line)
+
+        if len(tokens) > 1:
+            keyword = tokens[0]
+
+            if keyword == 'int' or keyword == 'float' or keyword == 'string' or keyword == 'void':
+                # Function declaration with parameters
+                if tokens[2] == '(':
+                    function_name = tokens[1]
+                    return_type = tokens[0]
+
+                    symbol_table.insert_function(function_name, return_type)
+
+                    # Extract and save function parameters
+
+                    i = 4  # Index of first parameter
+                    while i < len(tokens) and tokens[i] != '{':
+                        if tokens[i] == ',':
+                            symbol_table.insert_variable(tokens[i-1], tokens[i-2])
+                            i += 2  # Move to next parameter
+                        else:
+                            symbol_table.insert_variable(tokens[i], tokens[i-1])
+                            i += 3  # Move to next parameter
+                else:
+                    # Variable declaration
+                    symbol_table.insert_variable(tokens[1], tokens[0])
+    return symbol_table
 
 def analyze_code(file_path):
     symbol_table = SymbolTable()
@@ -76,14 +121,9 @@ def analyze_code(file_path):
             # comprueba declaraciones de variables solas
             if last != '{':
                 if keyword == 'int' or keyword == 'float' or keyword == 'string':
-                    if current_function:
-                        # Variable declaration
-                        print(f"Error - Línea {line_num}: Declaración de variable '{tokens[1]}' dentro de una función.")
-                    else:
                         symbol_table.insert_variable(tokens[1], tokens[0])
-
-            if '(' in tokens:
-                symbol_table.insert_variable(tokens[5], tokens[4])
+                else:
+                    print(f"Error - Línea {line_num}: Declaración de variable '{tokens[1]}' invalida.")
 
             # comprueba declaraciones de funciones
             if last == '{':
@@ -132,4 +172,4 @@ def analyze_code(file_path):
 
 # Ejemplo de uso
 file_path = '../codigo_fuente.txt'
-analyze_code(file_path)
+print(guardarEnTablaSimbolos(file_path))
