@@ -91,6 +91,8 @@ def guardarEnTablaSimbolos(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
 
+    current_function = None
+
     for line_num, line in enumerate(lines, start=1):
         tokens = split_parenthesis(line)
 
@@ -106,6 +108,7 @@ def guardarEnTablaSimbolos(file_path):
                     enFuncion = True
                     function_name = tokens[1]
                     return_type = tokens[0]
+                    current_function = function_name
 
                     tablaSimbolos.insertar_funcion(function_name, return_type)
 
@@ -133,11 +136,9 @@ def guardarEnTablaSimbolos(file_path):
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "funcion")
                         else:
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
+
             elif keyword == 'if' or keyword == 'while':
                 condition_tokens = tokens[2:]
-
-                if len(condition_tokens) != 3:
-                    continue
 
                 variable1 = condition_tokens[0]
                 operator = condition_tokens[1]
@@ -146,15 +147,20 @@ def guardarEnTablaSimbolos(file_path):
                 if operator not in ['==', '!=', '<', '>', '<=', '>=']:
                     continue
 
-                variable1_type = tablaSimbolos.buscarVariable(variable1, "F")
-                variable2_type = tablaSimbolos.buscarVariable(variable2, "F")
+                variable1_type = tablaSimbolos.buscarVariable(variable1, "funcion")
 
-                if variable1_type is None or variable2_type is None:
+                if variable1_type is None:
                     continue
 
-                if variable1_type != variable2_type:
+                if not validarDato(variable1_type, variable2):
                     errors.append(
                         f"Error - Línea {line_num}: Los tipos de las variables '{variable1}' y '{variable2}' deben ser iguales para la condición.")
+
+            if keyword == 'return':
+                # Check return type
+                expected_return_type = tablaSimbolos.buscarFuncion(current_function)
+                if expected_return_type and len(tokens) >= 2 and tokens[1] != expected_return_type:
+                    errors.append(f"Error - Línea {line_num}: Tipo de retorno incorrecto para la función '{current_function}'.")
     if errors:
         for error in errors:
             print(error)
