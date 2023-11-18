@@ -4,8 +4,8 @@ class TablaSimbolos:
         self.funciones = {}
 
     def insertar_variable(self, nombre, tipo, ambito):
-        if ambito not in self.variables:  # Verifica si el ámbito existe en el diccionario
-            self.variables[ambito] = {}  # Si no existe, inicialízalo como un diccionario vacío
+        if ambito not in self.variables:
+            self.variables[ambito] = {}
 
         if nombre in self.variables[ambito]:
             print(f"Error - Variable '{nombre}' redefinida.")
@@ -13,7 +13,10 @@ class TablaSimbolos:
             self.variables[ambito][nombre] = tipo
 
     def buscarVariable(self, nombre, ambito):
-        return self.variables[ambito].get(nombre, None)
+        return self.variables.get(ambito, {}).get(nombre, None)
+
+    def comprobarVariableG(self, nombre):
+        return self.variables.get("global", {}).get(nombre, None) is not None
 
     def insertar_funcion(self, nombre, tipoRetorno):
         if nombre in self.funciones:
@@ -77,8 +80,15 @@ def validarDato(variable_type, variable_value):
             return False
     elif variable_type == 'string':
         try:
+            # Check if variable_value can be converted to string
             str(variable_value)
-            return True
+
+            try:
+                int(variable_value)
+                float(variable_value)
+
+            except:
+                return True
         except:
             return False
 
@@ -116,7 +126,8 @@ def guardarEnTablaSimbolos(file_path):
 
                     i = 4  # Empieza a contar los parametros
                     while i < len(tokens) and tokens[i] != '{':
-                        if tokens[i - 1] == 'int' or tokens[i - 1] == 'float' or tokens[i - 1] == 'string' or tokens[i - 1]:
+                        if tokens[i - 1] == 'int' or tokens[i - 1] == 'float' or tokens[i - 1] == 'string' or tokens[
+                            i - 1]:
                             tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1], function_name)
                             i += 3  # Siguiente variable
                 else:
@@ -144,7 +155,17 @@ def guardarEnTablaSimbolos(file_path):
                     v1 = tokens[i]
                     v2 = tokens[i - 1]
                     v3 = tokens[i - 2]
+
+                    # Validar que v1, v2, v3 sean variables
+                    if not v1 not in ['(', ')', '{', '}']:
+                        errors.append(f"Error - Línea {line_num}: '{v1}' no es una variable válida.")
+                    if not v2 not in ['(', ')', '{', '}']:
+                        errors.append(f"Error - Línea {line_num}: '{v2}' no es una variable válida.")
+                    if not v3 not in ['(', ')', '{', '}']:
+                        errors.append(f"Error - Línea {line_num}: '{v3}' no es una variable válida.")
+
                     variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], current_function)
+                    # variable1_type2 = tablaSimbolos.buscarVariable(tokens[i], current_function)
 
                     if not tokens[i - 1] in ['==', '!=', '<', '>', '<=', '>=']:
                         salir = False
@@ -158,8 +179,8 @@ def guardarEnTablaSimbolos(file_path):
 
                     if not validarDato(variable1_type, tokens[i]):
                         errors.append(
-                            f"Error - Línea {line_num}: Los tipos de las variables '{tokens[i - 2]}' y '{tokens[i]}' "
-                            f"deben ser iguales para la condición.")
+                            f"Error - Línea {line_num}: Los tipos de operandos son incompatibles")
+
                     i += 4
             elif keyword == 'return':
                 # Check return type
@@ -169,9 +190,14 @@ def guardarEnTablaSimbolos(file_path):
                     variable1_type = tablaSimbolos.buscarVariable(tokens[1], "global")
                     if variable1_type is None:
                         continue
-                if expected_return_type and len(tokens) >= 2 and variable1_type != expected_return_type :
+                if expected_return_type and len(tokens) >= 2 and variable1_type != expected_return_type:
                     errors.append(
                         f"Error - Línea {line_num}: Tipo de retorno incorrecto para la función '{current_function}'.")
+
+            elif not tablaSimbolos.comprobarVariableG(tokens[0]):
+                errors.append(
+                    f"Error - Línea {line_num}: '{tokens[0]}' No esta declarado")
+
     if errors:
         for error in errors:
             print(error)
