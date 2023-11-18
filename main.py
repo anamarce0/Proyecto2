@@ -3,14 +3,20 @@ class TablaSimbolos:
         self.variables = {}
         self.funciones = {}
 
-    def insertar_variable(self, nombre, tipo):
-        if nombre in self.variables:
+    def insertar_variable(self, nombre, tipo, ambito):
+        if ambito not in self.variables:
+            self.variables[ambito] = {}
+
+        if nombre in self.variables[ambito]:
             print(f"Error - Variable '{nombre}' redefinida.")
         else:
-            self.variables[nombre] = tipo
+            self.variables[ambito][nombre] = tipo
 
-    def buscar(self, nombre):
-        return self.variables.get(nombre, None)
+    def buscarVariable(self, nombre, ambito):
+        return self.variables.get(ambito, {}).get(nombre, None)
+
+    def comprobarVariableG(self, nombre):
+        return self.variables.get("global", {}).get(nombre, None) is not None
 
     def insertar_funcion(self, nombre, tipoRetorno):
         if nombre in self.funciones:
@@ -18,7 +24,7 @@ class TablaSimbolos:
         else:
             self.funciones[nombre] = tipoRetorno
 
-    def lookup_function(self, name):
+    def buscarFuncion(self, name):
         return self.funciones.get(name, None)
 
     def __str__(self):
@@ -50,7 +56,7 @@ def split_parenthesis(linea):
                 palabra = ''
             tokens.append(',')
         else:
-            if char != '\t' and char != '\n':
+            if char != '\t' and char != '\n' and char != '"':
                 palabra += char
 
     if palabra:
@@ -58,46 +64,39 @@ def split_parenthesis(linea):
 
     return tokens
 
+
+def validarDato(variable_type, variable_value):
+    if variable_type == 'int':
+        try:
+            int(variable_value)
+            return True
+        except:
+            return False
+    elif variable_type == 'float':
+        try:
+            float(variable_value)
+            return True
+        except:
+            return False
+    elif variable_type == 'string':
+        try:
+            # Check if variable_value can be converted to string
+            str(variable_value)
+
+            try:
+                int(variable_value)
+                float(variable_value)
+
+            except:
+                return True
+        except:
+            return False
+
+
 def guardarEnTablaSimbolos(file_path):
     tablaSimbolos = TablaSimbolos()
-
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-
-    for line_num, line in enumerate(lines, start=1):
-        tokens = split_parenthesis(line)
-
-        if len(tokens) > 1:
-            keyword = tokens[0]
-
-            if keyword == 'int' or keyword == 'float' or keyword == 'string' or keyword == 'void':
-                # Declarar funcion con parametros
-                if tokens[2] == '(':
-                    function_name = tokens[1]
-                    return_type = tokens[0]
-
-                    if tablaSimbolos.lookup_function(function_name):
-                        print(f"Error - Línea {line_num}: Función '{function_name}' redefinida.")
-                    else:
-                        tablaSimbolos.insertar_funcion(function_name, return_type)
-
-                    # Guardar parametros
-                    i = 4  # Primer parametro después de (
-                    while i < len(tokens) and tokens[i] != '{':
-                        if tokens[i] == ',':
-                            tablaSimbolos.insertar_variable(tokens[i - 1], tokens[i - 2])
-                            i += 2  # Siguiente variable
-                        else:
-                            tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1])
-                            i += 3  # Siguiente variable
-                else:
-                    # Declarar variable
-                    tablaSimbolos.insertar_variable(tokens[1], tokens[0])
-
-    return tablaSimbolos
-
-def analyze_code(file_path, symbol_table):
     errors = []
+    enFuncion = False
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -107,81 +106,107 @@ def analyze_code(file_path, symbol_table):
     for line_num, line in enumerate(lines, start=1):
         tokens = split_parenthesis(line)
 
+        if '}' in tokens:
+            enFuncion = False
+
         if len(tokens) > 1:
             keyword = tokens[0]
-            last = tokens[-1]
 
-            # Check if it's a variable declaration or assignment
-            if '=' in tokens:
-                variable_name = tokens[tokens.index('=') - 1]
-                variable_type = symbol_table.buscar(variable_name)
+            if keyword == 'int' or keyword == 'float' or keyword == 'string' or keyword == 'void':
+                # Declarar funcion con parametros
+                if len(tokens) > 2 and tokens[2] == '(':
+                    enFuncion = True
+                    function_name = tokens[1]
+                    return_type = tokens[0]
+                    current_function = function_name
 
-                if variable_type is None:
-                    errors.append(f"Error - Línea {line_num}: Uso de variable no declarada '{variable_name}'.")
+                    tablaSimbolos.insertar_funcion(function_name, return_type)
 
-            # Check declaraciones de variables
-            elif last != '{':
-                if keyword == 'int' or keyword == 'float' or keyword == 'string':
-                    symbol_table.insertar_variable(tokens[1], tokens[0])
+                    # Guardar parametros
+
+                    i = 4  # Empieza a contar los parametros
+                    while i < len(tokens) and tokens[i] != '{':
+                        if tokens[i - 1] == 'int' or tokens[i - 1] == 'float' or tokens[i - 1] == 'string' or tokens[
+                            i - 1]:
+                            tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1], function_name)
+                            i += 3  # Siguiente variable
                 else:
-                    errors.append(f"Error - Línea {line_num}: Declaración de variable '{tokens[1]}' invalida.")
-
-            # Check declaraciones de funciones
-            if last == '{':
-                if keyword == 'int' or keyword == 'float' or keyword == 'string' or keyword == 'void':
-                    # Function declaration
-                    if len(tokens) >= 4:
-                        function_name = tokens[1]
-                        return_type = tokens[0]
-                        symbol_table.insertar_funcion(function_name, return_type)
-                        current_function = function_name
-                    else:
-                        errors.append(f"Error - Línea {line_num}: Declaración de función incompleta.")
-
-            elif keyword == '}':
-                # End of function scope
-                current_function = None
-
-            # Revisar que el retorno sea correcto
-            elif current_function:
-                # Inside a function
-                if keyword == 'return':
-                    # Check if the function has a return type
-                    expected_return_type = symbol_table.lookup_function(current_function)
-                    if not expected_return_type:
-                        errors.append(
-                            f"Error - Línea {line_num}: La función '{current_function}' no tiene tipo de retorno declarado.")
-                    else:
-                        # Check if the return type matches the expected return type
-                        if len(tokens) >= 2:
-                            returned_value_type = symbol_table.buscar(tokens[1])
-                            if returned_value_type != expected_return_type:
-                                errors.append(
-                                    f"Error - Línea {line_num}: Tipo de retorno incorrecto para la función '{current_function}'.")
+                    # Declare variable with type checking
+                    variable_name = tokens[1]
+                    variable_type = tokens[0]
+                    if len(tokens) > 2:
+                        variable_value = tokens[3]
+                        if validarDato(variable_type, variable_value):
+                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
                         else:
                             errors.append(
-                                f"Error - Línea {line_num}: Falta valor de retorno para la función '{current_function}'.")
+                                f"Error en línea {line_num}: El valor '{variable_value}' no es una cadena para la "
+                                f"variable '{variable_name}'")
+                    else:
+                        if enFuncion:
+                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
+                        else:
+                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
 
-                elif keyword == 'if' or keyword == 'while':
-                    # Add your code to handle if/while statements inside functions
-                    pass
+            elif keyword == 'if' or keyword == 'while':
+                i = 4
+                salir = True
+                while i < len(tokens) and tokens[i] != '{' and salir == True:
+                    v1 = tokens[i]
+                    v2 = tokens[i - 1]
+                    v3 = tokens[i - 2]
 
-                # else:
-            # Assignment or other statements inside a function
-            # Add your code to handle assignments and other statements
+                    # Validar que v1, v2, v3 sean variables
+                    if not v1 not in ['(', ')', '{', '}']:
+                        errors.append(f"Error - Línea {line_num}: '{v1}' no es una variable válida.")
+                    if not v2 not in ['(', ')', '{', '}']:
+                        errors.append(f"Error - Línea {line_num}: '{v2}' no es una variable válida.")
+                    if not v3 not in ['(', ')', '{', '}']:
+                        errors.append(f"Error - Línea {line_num}: '{v3}' no es una variable válida.")
 
-            else:
-                errors.append(f"Error - Línea {line_num}: Uso de la palabra clave '{keyword}' fuera de una función.")
+                    variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], current_function)
+                    # variable1_type2 = tablaSimbolos.buscarVariable(tokens[i], current_function)
 
-    # Print errors
+                    if not tokens[i - 1] in ['==', '!=', '<', '>', '<=', '>=']:
+                        salir = False
+                        continue
+
+                    if variable1_type is None:
+                        variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], "global")
+                        if variable1_type is None:
+                            salir = False
+                            continue
+
+                    if not validarDato(variable1_type, tokens[i]):
+                        errors.append(
+                            f"Error - Línea {line_num}: Los tipos de operandos son incompatibles")
+
+                    i += 4
+            elif keyword == 'return':
+                # Check return type
+                expected_return_type = tablaSimbolos.buscarFuncion(current_function)
+                variable1_type = tablaSimbolos.buscarVariable(tokens[1], current_function)
+                if variable1_type is None:
+                    variable1_type = tablaSimbolos.buscarVariable(tokens[1], "global")
+                    if variable1_type is None:
+                        continue
+                if expected_return_type and len(tokens) >= 2 and variable1_type != expected_return_type:
+                    errors.append(
+                        f"Error - Línea {line_num}: Tipo de retorno incorrecto para la función '{current_function}'.")
+
+            elif not tablaSimbolos.comprobarVariableG(tokens[0]):
+                errors.append(
+                    f"Error - Línea {line_num}: '{tokens[0]}' No esta declarado")
+
     if errors:
         for error in errors:
             print(error)
     else:
         print("El código fuente es correcto.")
 
+    return tablaSimbolos
+
 
 # Ejemplo de uso
-file_path = 'codigo_fuente.txt'
-symbol_table = guardarEnTablaSimbolos(file_path)
-analyze_code(file_path, symbol_table)
+file_path = '../codigo_fuente.txt'
+print(guardarEnTablaSimbolos(file_path))
