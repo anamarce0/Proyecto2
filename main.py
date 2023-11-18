@@ -117,7 +117,7 @@ def guardarEnTablaSimbolos(file_path):
                     i = 4  # Empieza a contar los parametros
                     while i < len(tokens) and tokens[i] != '{':
                         if tokens[i - 1] == 'int' or tokens[i - 1] == 'float' or tokens[i - 1] == 'string' or tokens[i - 1]:
-                            tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1], "funcion")
+                            tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1], function_name)
                             i += 3  # Siguiente variable
                 else:
                     # Declare variable with type checking
@@ -133,34 +133,45 @@ def guardarEnTablaSimbolos(file_path):
                                 f"variable '{variable_name}'")
                     else:
                         if enFuncion:
-                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], "funcion")
+                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
                         else:
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
 
             elif keyword == 'if' or keyword == 'while':
-                condition_tokens = tokens[2:]
+                i = 4
+                salir = True
+                while i < len(tokens) and tokens[i] != '{' and salir == True:
+                    v1 = tokens[i]
+                    v2 = tokens[i - 1]
+                    v3 = tokens[i - 2]
+                    variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], current_function)
 
-                variable1 = condition_tokens[0]
-                operator = condition_tokens[1]
-                variable2 = condition_tokens[2]
+                    if not tokens[i - 1] in ['==', '!=', '<', '>', '<=', '>=']:
+                        salir = False
+                        continue
 
-                if operator not in ['==', '!=', '<', '>', '<=', '>=']:
-                    continue
+                    if variable1_type is None:
+                        variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], "global")
+                        if variable1_type is None:
+                            salir = False
+                            continue
 
-                variable1_type = tablaSimbolos.buscarVariable(variable1, "funcion")
-
-                if variable1_type is None:
-                    continue
-
-                if not validarDato(variable1_type, variable2):
-                    errors.append(
-                        f"Error - Línea {line_num}: Los tipos de las variables '{variable1}' y '{variable2}' deben ser iguales para la condición.")
-
-            if keyword == 'return':
+                    if not validarDato(variable1_type, tokens[i]):
+                        errors.append(
+                            f"Error - Línea {line_num}: Los tipos de las variables '{tokens[i - 2]}' y '{tokens[i]}' "
+                            f"deben ser iguales para la condición.")
+                    i += 4
+            elif keyword == 'return':
                 # Check return type
                 expected_return_type = tablaSimbolos.buscarFuncion(current_function)
-                if expected_return_type and len(tokens) >= 2 and tokens[1] != expected_return_type:
-                    errors.append(f"Error - Línea {line_num}: Tipo de retorno incorrecto para la función '{current_function}'.")
+                variable1_type = tablaSimbolos.buscarVariable(tokens[1], current_function)
+                if variable1_type is None:
+                    variable1_type = tablaSimbolos.buscarVariable(tokens[1], "global")
+                    if variable1_type is None:
+                        continue
+                if expected_return_type and len(tokens) >= 2 and variable1_type != expected_return_type :
+                    errors.append(
+                        f"Error - Línea {line_num}: Tipo de retorno incorrecto para la función '{current_function}'.")
     if errors:
         for error in errors:
             print(error)
