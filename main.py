@@ -1,6 +1,3 @@
-import re
-
-
 class TablaSimbolos:
     def __init__(self):
         self.variables = {}
@@ -127,7 +124,6 @@ def guardarEnTablaSimbolos(file_path):
     errors = []
     enFuncion = False
     enCondicion = False
-    ambito = ''
     cantPar = 0
 
     with open(file_path, 'r') as file:
@@ -150,10 +146,10 @@ def guardarEnTablaSimbolos(file_path):
 
             if cantPar == 0:
                 ambito = "global"
+            elif cantPar == 1:
+                ambito = current_function
             else:
-                ambito = 'funcion'
-
-            print(cantPar)
+                ambito = 'condicion'
 
             if keyword == 'int' or keyword == 'float' or keyword == 'string' or keyword == 'void':
                 # Declarar funcion con parametros
@@ -177,14 +173,11 @@ def guardarEnTablaSimbolos(file_path):
                     variable_type = tokens[0]
                     if len(tokens) > 2:
                         variable_value = tokens[3]
-                        if validarDato(variable_type, variable_value) or validarDatoEnTabla(tablaSimbolos,
-                                                                                            variable_type,
-                                                                                            variable_value,
-                                                                                            current_function):
-                            if enFuncion:
+                        if validarDato(variable_type, variable_value) or validarDatoEnTabla(tablaSimbolos, variable_type, variable_value, current_function):
+                            if ambito == current_function:
                                 tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
-                            elif enCondicion:
-                                tablaSimbolos.insertar_variable(tokens[1], tokens[0], "condicion")
+                            elif ambito == 'condicion':
+                                tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
                             else:
                                 tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
                         else:
@@ -192,9 +185,9 @@ def guardarEnTablaSimbolos(file_path):
                                 f"Error en línea {line_num}: El valor '{variable_value}' no es compatible con el tipo '{variable_type}' para la "
                                 f"variable '{variable_name}'")
                     else:
-                        if enFuncion:
+                        if ambito == current_function:
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
-                        elif enCondicion:
+                        elif ambito == 'condicion':
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "condicion")
                         else:
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
@@ -252,6 +245,8 @@ def guardarEnTablaSimbolos(file_path):
                 if variable1_type is None:
                     variable1_type = tablaSimbolos.buscarVariable(tokens[1], "global")
                     if variable1_type is None:
+                        errors.append(
+                            f"Error - Línea {line_num}: {tokens[1]} No esta declarada.")
                         continue
                 if expected_return_type and len(tokens) >= 2 and variable1_type != expected_return_type:
                     errors.append(
