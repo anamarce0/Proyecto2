@@ -1,3 +1,6 @@
+import re
+
+
 class TablaSimbolos:
     def __init__(self):
         self.variables = {}
@@ -26,10 +29,6 @@ class TablaSimbolos:
 
     def buscarFuncion(self, name):
         return self.funciones.get(name, None)
-
-    def eliminar_variables_funcion(self, nombre_funcion):
-        if nombre_funcion in self.variables:
-            del self.variables[nombre_funcion]
 
     def __str__(self):
         return f"Symbol Table:\n\nVariables:\n{self.variables}\n\nFunctions:\n{self.funciones}"
@@ -128,6 +127,8 @@ def guardarEnTablaSimbolos(file_path):
     errors = []
     enFuncion = False
     enCondicion = False
+    ambito = ''
+    cantPar = 0
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -137,23 +138,26 @@ def guardarEnTablaSimbolos(file_path):
     for line_num, line in enumerate(lines, start=1):
         tokens = split_parenthesis(line)
 
-        if '}' in tokens:
-            if enCondicion and enFuncion:
-                ambito = "condicion"
-            else:
-                ambito = "global"
-
-            tablaSimbolos.eliminar_variables_funcion(ambito)
-            enCondicion = False
-            enFuncion = False
-
-        if len(tokens) > 1:
+        if len(tokens) > 0:
             keyword = tokens[0]
+
+            if '}' in tokens:
+                cantPar -= 1
+                continue
+
+            if '{' in tokens:
+                cantPar += 1
+
+            if cantPar == 0:
+                ambito = "global"
+            else:
+                ambito = 'funcion'
+
+            print(cantPar)
 
             if keyword == 'int' or keyword == 'float' or keyword == 'string' or keyword == 'void':
                 # Declarar funcion con parametros
                 if len(tokens) > 2 and tokens[2] == '(':
-                    enFuncion = True
                     function_name = tokens[1]
                     return_type = tokens[0]
                     current_function = function_name
@@ -174,7 +178,10 @@ def guardarEnTablaSimbolos(file_path):
                     variable_type = tokens[0]
                     if len(tokens) > 2:
                         variable_value = tokens[3]
-                        if validarDato(variable_type, variable_value) or validarDatoEnTabla(tablaSimbolos, variable_type, variable_value, current_function):
+                        if validarDato(variable_type, variable_value) or validarDatoEnTabla(tablaSimbolos,
+                                                                                            variable_type,
+                                                                                            variable_value,
+                                                                                            current_function):
                             if enFuncion:
                                 tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
                             elif enCondicion:
@@ -224,13 +231,22 @@ def guardarEnTablaSimbolos(file_path):
                                 salir = False
                                 continue
 
-                    if not validarDato(variable1_type, tokens[i]) or not validarDatoEnTabla(tablaSimbolos, variable1_type, tokens[i], current_function):
+                    if not validarDato(variable1_type, tokens[i]) or not validarDatoEnTabla(tablaSimbolos,
+                                                                                            variable1_type, tokens[i],
+                                                                                            current_function):
                         errors.append(
                             f"Error - Línea {line_num}: Los tipos de operandos son incompatibles")
 
+                    if tokens[i + 1] not in ['and', 'or'] and tokens[i + 1] != ')':
+                        errors.append(
+                            f"Error - Línea {line_num}: Identificador no definido")
                     i += 4
                     enCondicion = False
             elif keyword == 'return':
+                if ambito == 'global':
+                    errors.append(
+                        f"Error - Línea {line_num}: '{tokens[0]}' Identificador no definido")
+                    continue
                 # Check return type
                 expected_return_type = tablaSimbolos.buscarFuncion(current_function)
                 variable1_type = tablaSimbolos.buscarVariable(tokens[1], current_function)
