@@ -27,6 +27,10 @@ class TablaSimbolos:
     def buscarFuncion(self, name):
         return self.funciones.get(name, None)
 
+    def eliminar_variables_funcion(self, nombre_funcion):
+        if nombre_funcion in self.variables:
+            del self.variables[nombre_funcion]
+
     def __str__(self):
         return f"Symbol Table:\n\nVariables:\n{self.variables}\n\nFunctions:\n{self.funciones}"
 
@@ -65,6 +69,32 @@ def split_parenthesis(linea):
     return tokens
 
 
+def validarDatoEnTabla(tablaSimbolos, variable_type, variable_value, current_function):
+    existing_type = tablaSimbolos.buscarVariable(variable_value, current_function)
+    if existing_type is not None and existing_type != variable_type:
+        # Try converting the variable_value to the expected type
+        if variable_type == 'int':
+            try:
+                int(variable_value)
+                return True
+            except:
+                return False
+        elif variable_type == 'float':
+            try:
+                float(variable_value)
+                return True
+            except:
+                return False
+        elif variable_type == 'string':
+            try:
+                str(variable_value)
+                return True
+            except:
+                return False
+    else:
+        return True
+
+
 def validarDato(variable_type, variable_value):
     if variable_type == 'int':
         try:
@@ -86,7 +116,7 @@ def validarDato(variable_type, variable_value):
             try:
                 int(variable_value)
                 float(variable_value)
-
+                return True
             except:
                 return True
         except:
@@ -97,6 +127,7 @@ def guardarEnTablaSimbolos(file_path):
     tablaSimbolos = TablaSimbolos()
     errors = []
     enFuncion = False
+    enCondicion = False
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -107,6 +138,13 @@ def guardarEnTablaSimbolos(file_path):
         tokens = split_parenthesis(line)
 
         if '}' in tokens:
+            if enCondicion and enFuncion:
+                ambito = "condicion"
+            else:
+                ambito = "global"
+
+            tablaSimbolos.eliminar_variables_funcion(ambito)
+            enCondicion = False
             enFuncion = False
 
         if len(tokens) > 1:
@@ -127,7 +165,7 @@ def guardarEnTablaSimbolos(file_path):
                     i = 4  # Empieza a contar los parametros
                     while i < len(tokens) and tokens[i] != '{':
                         if tokens[i - 1] == 'int' or tokens[i - 1] == 'float' or tokens[i - 1] == 'string' or tokens[
-                            i - 1]:
+                            i - 1] == 'void':
                             tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1], function_name)
                             i += 3  # Siguiente variable
                 else:
@@ -136,19 +174,27 @@ def guardarEnTablaSimbolos(file_path):
                     variable_type = tokens[0]
                     if len(tokens) > 2:
                         variable_value = tokens[3]
-                        if validarDato(variable_type, variable_value):
-                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
+                        if validarDato(variable_type, variable_value) or validarDatoEnTabla(tablaSimbolos, variable_type, variable_value, current_function):
+                            if enFuncion:
+                                tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
+                            elif enCondicion:
+                                tablaSimbolos.insertar_variable(tokens[1], tokens[0], "condicion")
+                            else:
+                                tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
                         else:
                             errors.append(
-                                f"Error en línea {line_num}: El valor '{variable_value}' no es una cadena para la "
+                                f"Error en línea {line_num}: El valor '{variable_value}' no es compatible con el tipo '{variable_type}' para la "
                                 f"variable '{variable_name}'")
                     else:
                         if enFuncion:
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], current_function)
+                        elif enCondicion:
+                            tablaSimbolos.insertar_variable(tokens[1], tokens[0], "condicion")
                         else:
                             tablaSimbolos.insertar_variable(tokens[1], tokens[0], "global")
 
             elif keyword == 'if' or keyword == 'while':
+                enCondicion = True
                 i = 4
                 salir = True
                 while i < len(tokens) and tokens[i] != '{' and salir == True:
@@ -165,23 +211,25 @@ def guardarEnTablaSimbolos(file_path):
                         errors.append(f"Error - Línea {line_num}: '{v3}' no es una variable válida.")
 
                     variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], current_function)
-                    # variable1_type2 = tablaSimbolos.buscarVariable(tokens[i], current_function)
 
                     if not tokens[i - 1] in ['==', '!=', '<', '>', '<=', '>=']:
                         salir = False
                         continue
 
                     if variable1_type is None:
-                        variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], "global")
+                        variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], "condicion")
                         if variable1_type is None:
-                            salir = False
-                            continue
+                            variable1_type = tablaSimbolos.buscarVariable(tokens[i - 2], "global")
+                            if variable1_type is None:
+                                salir = False
+                                continue
 
-                    if not validarDato(variable1_type, tokens[i]):
+                    if not validarDato(variable1_type, tokens[i]) or not validarDatoEnTabla(tablaSimbolos, variable1_type, tokens[i], current_function):
                         errors.append(
                             f"Error - Línea {line_num}: Los tipos de operandos son incompatibles")
 
                     i += 4
+                    enCondicion = False
             elif keyword == 'return':
                 # Check return type
                 expected_return_type = tablaSimbolos.buscarFuncion(current_function)
