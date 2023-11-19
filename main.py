@@ -168,8 +168,7 @@ def guardarEnTablaSimbolos(file_path):
 
                     i = 4  # Empieza a contar los parametros
                     while i < len(tokens) and tokens[i] != '{':
-                        if tokens[i - 1] == 'int' or tokens[i - 1] == 'float' or tokens[i - 1] == 'string' or tokens[
-                            i - 1] == 'void':
+                        if tokens[i - 1] == 'int' or tokens[i - 1] == 'float' or tokens[i - 1] == 'string' or tokens[i - 1] == 'void':
                             tablaSimbolos.insertar_variable(tokens[i], tokens[i - 1], function_name)
                             i += 3  # Siguiente variable
                 else:
