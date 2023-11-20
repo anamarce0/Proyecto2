@@ -37,7 +37,7 @@ class TablaSimbolos:
 def split_parenthesis(linea):
     tokens = []
     palabra = ''
-    operadores = ['(', ')', '{', '}', ',', '+', '-', '=', '==', '!=', '<', '>', '<=', '>=']
+    operadores = ['(', ')', '{', '}', ',', '+', '-', '==', '!=', '<', '>', '<=', '>=']
 
     for char in linea:
         if char in operadores:
@@ -50,7 +50,7 @@ def split_parenthesis(linea):
                 tokens.append(palabra)
                 palabra = ''
         else:
-            if char != '\t' and char != '\n' and char != '"':
+            if char != '\t' and char != '\n':
                 palabra += char
 
     if palabra:
@@ -80,7 +80,7 @@ def validarDato(tipo_variable, valor_de_variable, tabla_simbolos, funcion):
             return True
 
     elif tipo_variable == 'string':
-        subcadena = """"""
+        subcadena = '"'
         if subcadena in valor_de_variable:
             return True
     # El tipo de variable no es válido
@@ -159,30 +159,68 @@ def guardar_en_tabla_simbolos(file_path):
                             tabla_simbolos.insertar_variable(tokens[i], tokens[i - 1], nombre_funcion)
                             i += 3  # Siguiente variable
                 else:
-                    nombre_variable = tokens[1]
-                    variable_tipo = tokens[0]
+                    variable_name = tokens[1]
+                    variable_type = tokens[0]
 
                     if len(tokens) > 3:
-                        # Declarar variable y verificar el tipo
-                        i = 3
-                        correcto = True
-                        while i < len(tokens) and correcto:
+                        nombre_funcion = tabla_simbolos.buscarFuncion(tokens[3])
+                        if nombre_funcion is not None:
+                            variable_value = tokens[3]
 
-                            variable_valor = tokens[i]
-                            if not validarDato(variable_tipo, variable_valor, tabla_simbolos, ambito):
+                            if not variable_type == nombre_funcion:
                                 errores.append(
-                                    f"Error en línea {numero_linea}: El valor de '{variable_valor}' no se puede usar para inicializar una entidad de tipo '{variable_tipo}'")
-                                correcto = False
-                            i += 2
-                        if correcto and ambito == funcion:
-                            tabla_simbolos.insertar_variable(nombre_variable, variable_tipo, funcion)
-                        elif correcto:
-                            tabla_simbolos.insertar_variable(nombre_variable, variable_tipo, GLOBAL_SCOPE)
+                                    f"Error en línea {numero_linea}: El valor '{variable_value}' no es compatible con el tipo '{variable_type}' para la "
+                                    f"variable '{tokens[0]}'")
+                            else:
+                                actuales = tokens[3:]
+                                k = 2
+                                parametros = tabla_simbolos.getParametros(variable_value)
+                                try:
+                                    for nombre, tipo in parametros:
+                                        variable = tabla_simbolos.buscarVariable(actuales[k], funcion)
+                                        if tipo == variable:
+                                            k += 2
+                                        elif variable is None:
+                                            if not validarDato(tipo, actuales[k], tabla_simbolos, funcion):
+                                                errores.append(
+                                                    f"Error - Línea {numero_linea}: '{actuales[k]}' Argumento incompatible con parametro de tipo {tipo} ")
+                                            else:
+                                                errores.append(
+                                                    f"Error - Línea {numero_linea}: '{actuales[k]}' Identificador no definido")
+                                            break
+                                        else:
+                                            errores.append(
+                                                f"Error en línea {numero_linea}: No existe una funcion de conversion adecuada de {tablaSimbolos.buscarVariable(actuales[k], current_function)} a {tipo} ")
+                                            break
+                                except:
+                                    errores.append(
+                                        f"Error - Línea {numero_linea}: 'Muy pocos argumentos en la funcion llamada ")
+                        else:
+                            # Declare variable with type checking
+                            i = 3
+                            correcto = True
+                            while i < len(tokens) and correcto:
+                                operator = tokens[i - 1]  # que verifique los operadores
+                                variable_value = tokens[i]
+                                if not validarDato(variable_type, variable_value, tabla_simbolos, ambito):
+                                    errores.append(
+                                        f"Error en línea {numero_linea}: El valor '{variable_value}' no es compatible con el tipo '{variable_type}' para la "
+                                        f"variable '{variable_name}'")
+                                    correcto = False
+                                i += 2
+                            if correcto and ambito == funcion:
+                                tabla_simbolos.insertar_variable(variable_name, variable_type, funcion)
+                            elif correcto and ambito == 'condicion':
+                                tabla_simbolos.insertar_variable(tokens[1], variable_type, funcion)
+                            elif correcto:
+                                tabla_simbolos.insertar_variable(tokens[1], variable_type, "global")
                     else:
                         if ambito == funcion:
-                            tabla_simbolos.insertar_variable(nombre_variable, variable_tipo, funcion)
+                            tabla_simbolos.insertar_variable(variable_name, variable_type, funcion)
+                        elif ambito == 'condicion':
+                            tabla_simbolos.insertar_variable(variable_name, variable_type, funcion)
                         else:
-                            tabla_simbolos.insertar_variable(nombre_variable, variable_tipo, GLOBAL_SCOPE)
+                            tabla_simbolos.insertar_variable(variable_name, variable_type, "global")
 
             elif keyword in ['if', 'while']:
                 i = 4
@@ -245,21 +283,6 @@ def guardar_en_tabla_simbolos(file_path):
                 else:
                     errores.append(
                         f"Error - Línea {numero_linea + 1}: Se espera una expresión")
-
-            elif tabla_simbolos.buscarVariable(keyword, funcion) is not None:
-                if len(tokens) > 0:
-                    i = 2
-                    variable_tipo = tabla_simbolos.buscarVariable(keyword, funcion)
-                    correcto = True
-                    while i < len(tokens) and correcto:
-
-                        variable_valor = tokens[i]
-                        if not validarDato(variable_tipo, variable_valor, tabla_simbolos, funcion):
-                            errores.append(
-                                f"Error en línea {numero_linea}: El valor de '{variable_valor}' no se puede usar para inicializar una entidad de tipo '{variable_tipo}'")
-                            correcto = False
-                        i += 2
-
             elif tabla_simbolos.buscarVariable(keyword, funcion) is not None:
                 if len(tokens) > 0:
                     variable_value = tokens[2]
