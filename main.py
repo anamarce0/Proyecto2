@@ -70,6 +70,13 @@ def validarDato(tipo_variable, valor_de_variable, tabla_simbolos, funcion):
             # El tipo de variable es válido de acuerdo a la tabla de símbolos
             return True
 
+        # Si no se encuentra en el ámbito de la función, verificar en el ámbito global
+        tipo_existente_global = tabla_simbolos.buscarVariable(valor_de_variable, GLOBAL_SCOPE)
+        if tipo_existente_global is not None:
+            if tipo_existente_global != tipo_variable:
+                return False
+            return True
+
     # Revisa si el valor de la variable puede ser convertido
     if tipo_variable == 'int':
         if convertir_int(valor_de_variable):
@@ -131,12 +138,14 @@ def guardar_en_tabla_simbolos(file_path):
 
             if '}' in tokens:
                 cant_par -= 1
+
                 continue
 
             if '{' in tokens:
                 cant_par += 1
 
             if cant_par == 0:
+                funcion = GLOBAL_SCOPE
                 ambito = GLOBAL_SCOPE
             elif cant_par == 1:
                 ambito = funcion
@@ -181,6 +190,7 @@ def guardar_en_tabla_simbolos(file_path):
                                         if tipo == variable:
                                             k += 2
                                         elif variable is None:
+                                            print(funcion)
                                             if not validarDato(tipo, actuales[k], tabla_simbolos, funcion):
                                                 errores.append(
                                                     f"Error - Línea {numero_linea}: '{actuales[k]}' Argumento incompatible con parametro de tipo {tipo} ")
@@ -192,9 +202,11 @@ def guardar_en_tabla_simbolos(file_path):
                                             errores.append(
                                                 f"Error en línea {numero_linea}: No existe una funcion de conversion adecuada de {tablaSimbolos.buscarVariable(actuales[k], current_function)} a {tipo} ")
                                             break
+
                                 except:
                                     errores.append(
                                         f"Error - Línea {numero_linea}: 'Muy pocos argumentos en la funcion llamada ")
+                                tabla_simbolos.insertar_variable(variable_name, variable_type, funcion)
                         else:
                             # Declare variable with type checking
                             i = 3
@@ -262,6 +274,9 @@ def guardar_en_tabla_simbolos(file_path):
                         errores.append(
                             f"Error - Línea {numero_linea}: Identificador no definido")
                     i += 4
+
+                    if cant_par == 1:
+                        funcion = tokens[i]
             elif keyword == 'return':
                 if ambito == 'global':
                     errores.append(
@@ -330,6 +345,7 @@ def guardar_en_tabla_simbolos(file_path):
                             i += 2
 
             elif not tabla_simbolos.comprobarVariableG(tokens[0]):
+                print(funcion)
                 errores.append(
                     f"Error - Línea {numero_linea}: '{tokens[0]}' No está declarado")
 
