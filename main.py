@@ -361,5 +361,5 @@ def guardar_en_tabla_simbolos(file_path):
 
 
 # Ejemplo de uso
-file_path = '../codigo_fuente.txt'
+file_path = 'codigo_fuente.txt'
 print(guardar_en_tabla_simbolos(file_path))

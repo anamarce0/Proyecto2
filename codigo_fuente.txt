@@ -1,14 +1,15 @@
 string id = "001"
 string contrasena = "chocolate123"
 
-void iniciarSesion(string ced, string contra){
+int iniciarSesion(string ced, string contra){
 	ced = id
 	contra = contrasena
 	int x = 2
-	int y = 6
+	
 	if (x + y == 8){
-		y = x
+		int y = 6
 	}
+return y
 }
 
 int suma(int x, int y){
