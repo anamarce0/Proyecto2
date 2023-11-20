@@ -138,7 +138,9 @@ def guardar_en_tabla_simbolos(file_path):
 
             if '}' in tokens:
                 cant_par -= 1
-
+                # Restablecer la función actual al salir del bloque
+                if cant_par == 1:
+                    funcion = None
                 continue
 
             if '{' in tokens:
