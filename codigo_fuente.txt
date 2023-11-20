@@ -1,0 +1,21 @@
+string id = "001"
+string contrasena = "chocolate123"
+
+void iniciarSesion(string ced, string contra){
+	ced = id
+	contra = contrasena
+	int x = 2
+	int y = 6
+	if (x + y == 8){
+		y = x
+	}
+}
+
+int suma(int x, int y){
+	return x
+}
+
+int num
+
+int total = suma(num, num)
+total = 5 + num
