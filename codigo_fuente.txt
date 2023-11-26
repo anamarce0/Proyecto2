@@ -1,22 +1,35 @@
-string id = "001"
-string contrasena = "chocolate123"
+int global
+global = 10
 
-int iniciarSesion(string ced, string contra){
-	ced = id
-	contra = contrasena
-	int x = 2
-	
-	if (x + y == 8){
-		int y = 6
-	}
-return y
+string nombre
+nombre = "Tigre"
+
+x = 10  
+
+void algo(int a, string b){
+  if (a == nombre){  
+    b = "hola"
+	string texto
+	texto = nombre
+	float valor
+	valor = "malo"   
+  }
+  
+  global = 5
+  nombre = "Colacho"
+  
+  valor  = 1.5 
 }
 
-int suma(int x, int y){
-	return x
+int suma(int a, int b){
+  int res
+  res = a + b
+  return "suma"  
 }
 
-int num
+while (global < 10){
+  int c
+  c = global + 10.9 
+}
 
-int total = suma(num, num)
-total = 5 + num
+res = 14 

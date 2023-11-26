@@ -275,10 +275,9 @@ def guardar_en_tabla_simbolos(file_path):
                     if tokens[i + 1] not in ['and', 'or'] and tokens[i + 1] != ')':
                         errores.append(
                             f"Error - Línea {numero_linea}: Identificador no definido")
-                    i += 4
-
                     if cant_par == 1:
                         funcion = tokens[i]
+                    i += 4
             elif keyword == 'return':
                 if ambito == 'global':
                     errores.append(
